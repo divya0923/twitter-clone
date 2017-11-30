@@ -9,6 +9,7 @@ defmodule WriterEngine do
         {:ok, [tweetCount, :ets.new(:tweetsTable, [:named_table, :protected])]}
     end
 
+    # insert in tweetsTable[tweetId, tweet, userId]
     def handle_call({:writeTweet, tweet, userId}, _from, [tweetCount, :tweetsTable]) do 
         IO.inspect "writeTweet"
         tweetCount = tweetCount + 1; 
