@@ -19,3 +19,10 @@ Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_do
 and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
 be found at [https://hexdocs.pm/twitter](https://hexdocs.pm/twitter).
 
+Yet to implement: 
+Live connect/disconnect 
+Retweet
+sending tweets to followers when a user posts tweet 
+simulator - zipf coefficient 
+pool of userEngines
+

@@ -38,6 +38,5 @@ defmodule Twitter do
       
     {:ok, tweetList1} = GenServer.call mEngine, {:getTweets, "3"}
     IO.puts "retrieved tweet list" <> inspect(tweetList1)
-
   end  
 end
