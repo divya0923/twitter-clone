@@ -29,7 +29,7 @@ defmodule UserActor do
         {:noreply, [fMap, tMap, writer, hashtagEngine, mentionsEngine]}
     end
 
-    def handle_call({:processTweet, userId, tweet}, _from, [fMap, tMap, writer, hashtagEngine, mentionsEngine]) do      
+    def handle_cast({:processTweet, userId, tweet}, [fMap, tMap, writer, hashtagEngine, mentionsEngine]) do      
         {:ok, tweetId} = GenServer.call writer, {:writeTweet, tweet, userId}
 
         #update hashtag map if any
@@ -69,7 +69,7 @@ defmodule UserActor do
         tMap = Enum.reduce fList, tMap, fn(follower, tMap) -> 
             {id, tMap} = Map.get_and_update(tMap, follower, 
                  fn tList -> 
-                    sTweet = {tweetId, :os.system_time(:seconds), false}
+                    sTweet = {tweetId, :os.system_time(:seconds), 0}
                     pushTweet(follower, sTweet)                                            
                     if tList == nil do 
                         {follower, [sTweet]}
@@ -85,7 +85,7 @@ defmodule UserActor do
         tMap = Enum.reduce mList, tMap, fn(follower, tMap) -> 
             {id, tMap} = Map.get_and_update(tMap, follower, 
                  fn tList -> 
-                    sTweet = {tweetId, :os.system_time(:seconds), false}  
+                    sTweet = {tweetId, :os.system_time(:seconds), 0}  
                     pushTweet(follower, sTweet)                                            
                     if tList == nil do 
                         {follower, [sTweet]}
@@ -97,15 +97,16 @@ defmodule UserActor do
             tMap
         end
 
-        {:reply, :ok, [fMap, tMap, writer, hashtagEngine, mentionsEngine]}        
+        {:noreply, [fMap, tMap, writer, hashtagEngine, mentionsEngine]}        
     end
 
-    def handle_call({:processreTweet, userId, tweetId}, _from, [fMap, tMap, writer, hashtagEngine, mentionsEngine]) do      
+    def handle_cast({:processreTweet, userId, tweetId}, [fMap, tMap, writer, hashtagEngine, mentionsEngine]) do      
         {:ok, fList} = Map.fetch(fMap, userId) 
         tMap = Enum.reduce fList, tMap, fn(follower, tMap) -> 
             {id, tMap} = Map.get_and_update(tMap, follower, 
                  fn tList -> 
-                    sTweet = {tweetId, :os.system_time(:seconds), true}
+                    sTweet = {tweetId, :os.system_time(:seconds), userId}
+                    pushTweet(follower, sTweet)
                     if tList == nil do 
                         {follower, [sTweet]}
                     else
@@ -115,17 +116,26 @@ defmodule UserActor do
                  )      
             tMap
         end
+        {:noreply, [fMap, tMap, writer, hashtagEngine, mentionsEngine]}
     end
 
     #getTweets
     def handle_call({:getTweets, userId}, _from, [fMap, tMap, writer, hashtagEngine, mentionsEngine]) do 
         {:ok, tList} = Map.fetch(tMap, userId)
+        IO.puts "list " <> inspect(tList)
         {:reply, tList, [fMap, tMap, writer, hashtagEngine, mentionsEngine]}
     end
 
-    def pushTweet(tweet, user) do 
+    def pushTweet(user, {id, ts, rt}) do 
         if :global.whereis_name(user) != :undefined do
-            GenServer.call :global.whereis_name(user), {:recieveTweet, tweet}
+            [{id, text, user}] = :ets.lookup(:tweetsTable, id)
+            if rt != 0 do 
+                text = Integer.to_string(rt) <> " ReTweeted- " <> Integer.to_string(user) <> " : " <> text 
+            else 
+                text = Integer.to_string(user) <> " : " <> text
+            end
+            IO.puts "Post: " <> inspect([{id, ts, text}]) <> " " <> inspect(hd([{id, ts, text}]))
+            GenServer.cast :global.whereis_name(user), {:recieveTweet, [{id, ts, text}]}
         end
     end 
 end

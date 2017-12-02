@@ -2,10 +2,10 @@ defmodule HashtagEngine do
     use GenServer
 
     def start_link(hMap) do
-        GenServer.start_link(__MODULE__, [hMap])                      
+        GenServer.start_link(__MODULE__, [hMap, 0])                      
     end 
 
-    def handle_cast({:addTags, tagList, tweetId}, [hMap]) do 
+    def handle_cast({:addTags, tagList, tweetId}, [hMap, lastRecord]) do 
         hMap = Enum.reduce tagList, hMap, fn(tag, hMap) -> 
             {id, hMap} = Map.get_and_update(hMap, tag, 
                  fn tList -> 
@@ -18,21 +18,28 @@ defmodule HashtagEngine do
                  )       
             hMap
         end
-        {:noreply, [hMap]}        
+        {:noreply, [hMap, (lastRecord+1)]}        
     end
 
-    def handle_call({:getTweets, hashTag}, _from, [hMap]) do
+    def handle_call({:getTweets, hashTag}, _from, [hMap, lastRecord]) do
         tweetList = []
-        if Map.fetch(hMap, hashTag) == :error do
-            #IO.puts "tweets list empty"                        
+        hashToSearch = :ok
+        if length(Map.keys(hMap)) == 0 do
+            IO.puts "hash tweets list empty"
         else 
-            {:ok, list} = Map.fetch(hMap, hashTag)           
+            hashToSearch = Enum.random(Map.keys(hMap))
+            {:ok, list} = Map.fetch(hMap, hashToSearch) 
             tweetList = Enum.reduce list, tweetList, fn(id, tweetList) -> 
                 [{id, text, user}] = :ets.lookup(:tweetsTable, id)
                 tweetList = [Integer.to_string(user) <> " : " <> text] ++ tweetList
                 tweetList
             end 
         end
-        {:reply, {:ok, tweetList}, [hMap]}             
+        IO.puts "hashSearch sending: " <> inspect(tweetList)
+        {:reply, {hashToSearch, tweetList}, [hMap, (lastRecord+1)]}             
     end 
+
+    def handle_call(:getStat, _from, [hMap, lastRecord]) do
+        {:reply, lastRecord, [hMap, 0]} 
+    end
 end    
