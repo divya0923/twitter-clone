@@ -6,87 +6,68 @@ defmodule UserEngine do
     #tMap - hashMap {userId, [tweetIds]}
     def start_link(userList, fMap, tMap) do
         {:ok, writer} = WriterEngine.start_link(0)
-        hashtagEngine = :global.whereis_name(:hashtagEngine)
-        mentionsEngine = :global.whereis_name(:mentionsEngine)        
-        IO.puts "pids" <> inspect(hashtagEngine) <> " " <> inspect(mentionsEngine)
+        :global.register_name(:writerEngine, writer)
+        :global.sync()
         
-        IO.inspect writer 
-        GenServer.start_link(__MODULE__, [userList, fMap, tMap, writer, hashtagEngine, mentionsEngine])              
+        hashtagEngine = :global.whereis_name(:hashtagEngine)
+        mentionsEngine = :global.whereis_name(:mentionsEngine) 
+        actors = spawn_actors(1, 10, [])  
+        GenServer.start_link(__MODULE__, [userList, fMap, tMap, writer, hashtagEngine, mentionsEngine, actors])              
     end
-      
+
     #registerUser
-    def handle_cast({:register, userId}, [userList, fMap, tMap, writer, hashtagEngine, mentionsEngine]) do
+    def handle_call({:register, userId}, _from, [userList, fMap, tMap, writer, hashtagEngine, mentionsEngine, actors]) do
         userList = [userId | userList]
-        fMap = Map.put(fMap, userId, [])
+        fMap = Map.put(fMap, userId, []) 
         tMap = Map.put(tMap, userId, [])
-        {:noreply, [userList, fMap, tMap, writer, hashtagEngine, mentionsEngine]}
+        {:reply, :done, [userList, fMap, tMap, writer, hashtagEngine, mentionsEngine, actors]}
     end 
 
     #addFollowers
-    def handle_cast({:subscribe, userId, followerList}, [userList, fMap, tMap, writer, hashtagEngine, mentionsEngine]) do 
-        {id, fMap} = Map.get_and_update(fMap, userId, 
-            fn fList -> 
-                {userId, followerList ++ fList}
-            end
-            )
-        {:ok, iList} = Map.fetch(fMap, userId)
-        IO.puts "followersList" <> inspect(userId) <> inspect(iList)
-        {:noreply, [userList, fMap, tMap, writer, hashtagEngine, mentionsEngine]}
+    def handle_cast({:subscribe, userId, followerList}, [userList, fMap, tMap, writer, hashtagEngine, mentionsEngine, actors]) do 
+        Enum.each actors, fn actor -> 
+            GenServer.cast actor, {:subscribe, userId, followerList} 
+        end 
+        {:noreply, [userList, fMap, tMap, writer, hashtagEngine, mentionsEngine, actors]}
     end
 
     #postTweet 
-    def handle_call({:postTweet, userId, tweet}, _from, [userList, fMap, tMap, writer, hashtagEngine, mentionsEngine]) do 
-        {:ok, tweetId} = GenServer.call writer, {:writeTweet, tweet, userId}
-        IO.puts "tweetId of the recently inserted tweet " <> inspect(tweetId)
+    def handle_cast({:postTweet, userId, tweet}, [userList, fMap, tMap, writer, hashtagEngine, mentionsEngine, actors]) do 
+        actor = Enum.random actors
+        GenServer.call actor, {:processTweet, userId, tweet}    
+        {:noreply, :ok, [userList, fMap, tMap, writer, hashtagEngine, mentionsEngine, actors]}
+    end
 
-        #update tMap of followers
-        {:ok, fList} = Map.fetch(fMap, userId)
-        tMap = Enum.reduce fList, tMap, fn(follower, tMap) -> 
-            IO.puts "follower " <> inspect(follower) 
-            {id, tMap} = Map.get_and_update(tMap, follower, 
-                 fn tList -> 
-                     {follower, tList ++ [tweetId]}
-                 end
-                 )       
-            tMap
-        end
+    #postTweet 
+    def handle_call({:postTweet, userId, tweet}, _from, [userList, fMap, tMap, writer, hashtagEngine, mentionsEngine, actors]) do 
+        actor = Enum.random actors
+        GenServer.call actor, {:processTweet, userId, tweet}    
+        {:reply, :ok, [userList, fMap, tMap, writer, hashtagEngine, mentionsEngine, actors]}
+    end
 
-        #update hashtag map if any
-        IO.puts "hashtags"
-        hashtagList = String.split(tweet, ~r{\s})
-        tagList = []
-        tagList = Enum.reduce hashtagList, tagList, fn(tag, tagList) ->
-            if String.starts_with? tag, "#" do 
-                tagList = [tag] ++ tagList
-            end 
-            tagList 
-        end 
-        if length(tagList) > 0 do 
-            GenServer.cast hashtagEngine, {:addTags, tagList, tweetId}
-        end 
-
-        #update mentions map if any
-        IO.puts "mentions"
-        mentionsList = String.split(tweet, ~r{\s})
-        mList = []
-        mList = Enum.reduce mentionsList, mList, fn(mention, mList) ->
-            if String.starts_with? mention, "@" do 
-                mList = [mention] ++ mList
-            end 
-            mList 
-        end 
-        if length(mList) > 0 do 
-            GenServer.cast mentionsEngine, {:addMentions, mList, tweetId}
-        end 
-
-        {:reply, :ok, [userList, fMap, tMap, writer, hashtagEngine, mentionsEngine]}
+    #postTweet 
+    def handle_call({:reTweet, userId, tweetId}, _from, [userList, fMap, tMap, writer, hashtagEngine, mentionsEngine, actors]) do 
+        actor = Enum.random actors
+        GenServer.call actor, {:processreTweet, userId, tweetId}    
+        {:reply, :ok, [userList, fMap, tMap, writer, hashtagEngine, mentionsEngine, actors]}
     end
 
     #testMethod
-    def handle_call({:test, userId}, _from, [userList, fMap, tMap, writer, hashtagEngine, mentionsEngine]) do 
+    def handle_call({:test, userId}, _from, [userList, fMap, tMap, writer, hashtagEngine, mentionsEngine, actors]) do 
         {:ok, tList} = Map.fetch(tMap, userId)
         IO.puts "tweets for user" <> inspect(userId) <> " " <> inspect(tList)
-        {:reply, :ok, [userList, fMap, tMap, writer, hashtagEngine, mentionsEngine]}
+        {:reply, :ok, [userList, fMap, tMap, writer, hashtagEngine, mentionsEngine, actors]}
+    end
+
+    def spawn_actors(numActors, maxActors, actorList) do 
+        if numActors == maxActors do
+            actorList
+        else
+            {:ok, pidActor} = UserActor.start_link(%{}, %{})
+            :global.register_name("actor" <> Integer.to_string(numActors), pidActor)            
+            actorList = [pidActor | actorList]
+            spawn_actors(numActors + 1, maxActors, actorList)
+        end
     end
 end 
 
