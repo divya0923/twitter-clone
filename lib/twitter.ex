@@ -4,35 +4,27 @@ defmodule Twitter do
     end
     
     def process([]) do
-    IO.puts "No arguments given"
-    end
-    
-    def process(args) do
-    if length(args) != 1 do
-    IO.puts "Run as ./twitter <server-ip-address>"
-    else
-    _ = System.cmd("epmd", ['-daemon'])
-    #Node.start(String.to_atom("server@" <> Enum.at(args, 0)))
-    Node.start(String.to_atom("server@" <> "127.0.0.1"))
-    Node.set_cookie(:dsiuvryaaj)
-    #{:ok, client1} = Client.start_link() 
-    #{:ok, client2} = Client.start_link()
-    {:ok, hEngine} = HashtagEngine.start_link(%{})
-    {:ok, mEngine} = MentionsEngine.start_link(%{})
-    :global.register_name(:hashtagEngine, hEngine)
-    :global.register_name(:mentionsEngine, mEngine)
-    :global.sync()
-    
-    {:ok, userEngine} = UserEngine.start_link([], %{}, %{})
-    {:ok, rcdEngine} = RCDEngine.start_link(userEngine)
-    
-    :global.register_name(:userEngine, userEngine)
-    IO.puts "uEng" <> inspect(userEngine)
-    :global.register_name(:rcdEngine, rcdEngine)
-    :global.sync()
-    loop()
+      _ = System.cmd("epmd", ['-daemon'])
+      #Node.start(String.to_atom("server@" <> Enum.at(args, 0)))
+      Node.start(String.to_atom("server@" <> "127.0.0.1"))
+      Node.set_cookie(:dsiuvryaaj)
+      #{:ok, client1} = Client.start_link() 
+      #{:ok, client2} = Client.start_link()
+      {:ok, hEngine} = HashtagEngine.start_link(%{})
+      {:ok, mEngine} = MentionsEngine.start_link(%{})
+      :global.register_name(:hashtagEngine, hEngine)
+      :global.register_name(:mentionsEngine, mEngine)
+      :global.sync()
+      
+      {:ok, userEngine} = UserEngine.start_link([], %{}, %{})
+      {:ok, rcdEngine} = RCDEngine.start_link(userEngine)
+      
+      :global.register_name(:userEngine, userEngine)
+      IO.puts "Eng Start" <> inspect(userEngine)
+      :global.register_name(:rcdEngine, rcdEngine)
+      :global.sync()
+      loop()
     end 
-  end 
 
     def loop() do 
       loop()

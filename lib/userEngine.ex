@@ -1,6 +1,6 @@
 defmodule UserEngine do 
     use GenServer
-    
+    @numPoolActor 11
     # userList - list containing all userIds
     #fMap - hashmap {userId, [followers]}
     #tMap - hashMap {userId, [tweetIds]}
@@ -11,7 +11,7 @@ defmodule UserEngine do
         
         hashtagEngine = :global.whereis_name(:hashtagEngine)
         mentionsEngine = :global.whereis_name(:mentionsEngine) 
-        actors = spawn_actors(1, 10, [])  
+        actors = spawn_actors(1, @numPoolActor, [])  
         GenServer.start_link(__MODULE__, [userList, fMap, tMap, writer, hashtagEngine, mentionsEngine, actors, 0])              
     end
 
@@ -51,7 +51,7 @@ defmodule UserEngine do
     #testMethod
     def handle_call({:test, userId}, _from, [userList, fMap, tMap, writer, hashtagEngine, mentionsEngine, actors, lastRecord]) do 
         {:ok, tList} = Map.fetch(tMap, userId)
-        IO.puts "tweets for user" <> inspect(userId) <> " " <> inspect(tList)
+        #IO.puts "tweets for user" <> inspect(userId) <> " " <> inspect(tList)
         {:reply, :ok, [userList, fMap, tMap, writer, hashtagEngine, mentionsEngine, actors, lastRecord]}
     end
 
@@ -72,7 +72,7 @@ defmodule UserEngine do
     def handle_info(msg, [userList, fMap, tMap, writer, hashtagEngine, mentionsEngine, actors, lastRecord]) do 
         {:ok, file} = File.open("data.log", [:append])   
         IO.binwrite(file, " Log: " <> Integer.to_string(lastRecord))   
-        Process.send_after self(), :record, 10000    
+        Process.send_after self(), :record, 1000    
         {:noreply, [userList, fMap, tMap, writer, hashtagEngine, mentionsEngine, actors, 0]} 
     end
 end 
