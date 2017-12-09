@@ -50,11 +50,12 @@ defmodule HashtagEngine do
             tweetList = Enum.reduce list, tweetList, fn(id, tweetList) -> 
                 [{id, text, user}] = :ets.lookup(:tweetsTable, id)
                 tweetList = [Integer.to_string(user) <> " : " <> text] ++ tweetList
+                #tweetList = [text] ++ tweetList
                 tweetList
             end 
             pidClient = :global.whereis_name(caller)
             #IO.puts "hsearch eng" <> inspect(caller) <> " " <> inspect(pidClient)
-            IO.puts inspect(caller) <> " searched for hash: " <> inspect(hashToSearch)
+            IO.puts "User " <> inspect(caller) <> " searched for hash: " <> inspect(hashToSearch)
             if pidClient != :undefined do            
                 GenServer.cast pidClient, {:recievehSearch, tweetList, hashToSearch}
             end 

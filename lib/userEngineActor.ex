@@ -70,6 +70,7 @@ defmodule UserActor do
             {id, tMap} = Map.get_and_update(tMap, follower, 
                  fn tList -> 
                     sTweet = {tweetId, :os.system_time(:seconds), 0}
+                    #IO.puts inspect(userId) <> " posting to:" <> inspect(follower) <> " " <> inspect(tweetId)
                     postSuccess = pushTweet(follower, sTweet)
                     if postSuccess == true do
                         if tList != nil do 
@@ -156,14 +157,16 @@ defmodule UserActor do
                 [{tid, text, user}] = :ets.lookup(:tweetsTable, id)
                 if rt != 0 do 
                     text = Integer.to_string(rt) <> " ReTweeted- " <> Integer.to_string(user) <> " : " <> text 
+                    #text = Integer.to_string(rt) <> " ReTweeted- " <> text 
                 else 
                     text = Integer.to_string(user) <> " : " <> text
-                end                                  
+                    #text = text
+                end                                 
                 itList = [{id, ts, text}] ++ itList
             end
             pidClient = :global.whereis_name(userId)
             if pidClient != :undefined do
-                #IO.puts "itlist " <> inspect(tempList)            
+                #IO.puts "@server itlist " <> inspect(itList)            
                 GenServer.cast pidClient, {:recieveTweet, itList}
             end 
         end
@@ -171,18 +174,20 @@ defmodule UserActor do
         {:noreply, [fMap, tMap, writer, hashtagEngine, mentionsEngine]}
     end
 
-    def pushTweet(user, {id, ts, rt}) do 
+    def pushTweet(follower, {id, ts, rt}) do 
         postSuccess = false
-        if :global.whereis_name(user) != :undefined do
+        if :global.whereis_name(follower) != :undefined do
             postSuccess = true
             [{id, text, user}] = :ets.lookup(:tweetsTable, id)
             if rt != 0 do 
                 text = Integer.to_string(rt) <> " ReTweeted- " <> Integer.to_string(user) <> " : " <> text 
+                #text = Integer.to_string(rt) <> " ReTweeted- " <> text 
             else 
                 text = Integer.to_string(user) <> " : " <> text
+                #text = text
             end
-            #IO.puts "Post: " <> inspect([{id, ts, text}]) <> " " <> inspect(hd([{id, ts, text}]))
-            GenServer.cast :global.whereis_name(user), {:recieveTweet, [{id, ts, text}]}
+            #IO.puts inspect(self()) <> " Post to: " <> inspect(follower) <> " " <> inspect(hd([{id, ts, text}]))
+            GenServer.cast :global.whereis_name(follower), {:recieveTweet, [{id, ts, text}]}
         end
         postSuccess
     end 

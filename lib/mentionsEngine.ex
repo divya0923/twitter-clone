@@ -52,7 +52,8 @@ defmodule MentionsEngine do
             {:ok, list} = Map.fetch(mMap, mention)           
             tweetList = Enum.reduce list, tweetList, fn(id, tweetList) -> 
                 [{id, text, user}] = :ets.lookup(:tweetsTable, id)
-                tweetList = [Integer.to_string(user) <> " : " <> text] ++ tweetList
+                #tweetList = [Integer.to_string(user) <> " : " <> text] ++ tweetList
+                tweetList = [text] ++ tweetList
                 tweetList
             end 
             pidClient = :global.whereis_name(mention)

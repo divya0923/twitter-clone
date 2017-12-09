@@ -39,8 +39,10 @@ defmodule RCDEngine do
                     [{tid, text, user}] = :ets.lookup(:tweetsTable, id)
                     if rt != 0 do 
                         text = Integer.to_string(rt) <> " ReTweeted- " <> Integer.to_string(user) <> " : " <> text 
+                        #text = Integer.to_string(rt) <> " ReTweeted- " <> text 
                     else 
                         text = Integer.to_string(user) <> " : " <> text
+                        #text = text
                     end                                  
                     itList = [{id, ts, text}] ++ itList
                 end 
